@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt - <%= shop.name %></title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .receipt {
+            background: white;
+            max-width: 380px;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        .receipt-header {
+            background: #1B5E20;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .receipt-header h2 {
+            font-size: 22px;
+            margin-bottom: 4px;
+            font-family: system-ui, sans-serif;
+        }
+        .receipt-header .date {
+            font-size: 13px;
+            opacity: 0.9;
+            font-family: system-ui, sans-serif;
+        }
+        .receipt-body {
+            padding: 20px;
+        }
+        .items {
+            margin-bottom: 16px;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #ccc;
+            font-size: 14px;
+        }
+        .item-name {
+            font-weight: bold;
+        }
+        .item-qty {
+            color: #666;
+            font-size: 12px;
+        }
+        .item-price {
+            font-weight: bold;
+        }
+        .totals {
+            border-top: 2px solid #333;
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 14px;
+        }
+        .total-row.final {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid #1B5E20;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 16px;
+            color: #666;
+            font-size: 13px;
+            font-family: system-ui, sans-serif;
+        }
+        .actions {
+            display: flex;
+            padding: 16px 20px 20px;
+            gap: 12px;
+            background: #f5f5f5;
+        }
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            font-family: system-ui, sans-serif;
+        }
+        .btn-print {
+            background: #1B5E20;
+            color: white;
+        }
+        .btn-done {
+            background: white;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+        @media print {
+            body { background: white; padding: 0; }
+            .receipt { box-shadow: none; }
+            .actions { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="receipt-header">
+            <h2><%= shop.name %></h2>
+            <div class="date">
+                <%= new Date(sale.date).toLocaleDateString('en-GB', { 
+                    day: 'numeric', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                }) %>
+            </div>
+        </div>
+        
+        <% if (sale.oversellWarning) { %>
+    <div style="background: #FFF3E0; color: #E65100; padding: 12px; margin: 12px 0; border-radius: 8px; font-size: 13px;">
+        <span class="material-icons" style="font-size: 16px; vertical-align: middle;">warning</span>
+        <strong>Stock Warning:</strong> <%= sale.oversellWarning %>
+    </div>
+<% } %>
+        <div class="receipt-body">
+            <div class="items">
+                <% sale.items.forEach(item => { %>
+                    <div class="item">
+                        <div>
+                            <div class="item-name"><%= item.name %></div>
+                            <div class="item-qty"><%= item.quantity %> <%= item.unit %> × ₵<%= item.price.toFixed(2) %></div>
+                        </div>
+                        <div class="item-price">₵<%= item.total.toFixed(2) %></div>
+                    </div>
+                <% }) %>
+            </div>
+            
+            <div class="totals">
+                <div class="total-row">
+                    <span>Subtotal:</span>
+                    <span>₵<%= sale.total.toFixed(2) %></span>
+                </div>
+                <div class="total-row">
+                    <span>Amount Paid:</span>
+                    <span>₵<%= sale.amount_paid.toFixed(2) %></span>
+                </div>
+                <% if (sale.change > 0) { %>
+                    <div class="total-row">
+                        <span>Change:</span>
+                        <span>₵<%= sale.change.toFixed(2) %></span>
+                    </div>
+                <% } %>
+                <div class="total-row final">
+                    <span>TOTAL:</span>
+                    <span>₵<%= sale.total.toFixed(2) %></span>
+                </div>
+            </div>
+            
+            <div class="footer">
+                Payment: <%= sale.payment_method %><br>
+                Thank you for your patronage!
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-print" onclick="window.print()">
+                <span class="material-icons">print</span>
+                Print
+            </button>
+            <a href="/sales" class="btn btn-done">
+                <span class="material-icons">check</span>
+                Done
+            </a>
+        </div>
+    </div>
+</body>
+</html>

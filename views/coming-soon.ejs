@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= page %> - <%= shop.name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-left">
+                <a href="/dashboard" class="icon-btn">
+                    <span class="material-icons">arrow_back</span>
+                </a>
+                <h1><%= page %></h1>
+            </div>
+        </header>
+        
+        <main class="app-main">
+            <div class="empty-state">
+                <span class="material-icons">construction</span>
+                <h2><%= page %> Coming Soon</h2>
+                <p><%= message %></p>
+                <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+            </div>
+        </main>
+        
+        <nav class="bottom-nav">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-icons">home</span>
+                <span>Home</span>
+            </a>
+            <a href="/inventory" class="nav-item">
+                <span class="material-icons">inventory</span>
+                <span>Stock</span>
+            </a>
+            <a href="/sales" class="nav-item <%= page === 'Sales' ? 'active' : '' %>">
+                <span class="material-icons">point_of_sale</span>
+                <span>Sell</span>
+            </a>
+            <a href="/reports" class="nav-item <%= page === 'Reports' ? 'active' : '' %>">
+                <span class="material-icons">bar_chart</span>
+                <span>Reports</span>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Restock - <%= product.product_name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-left">
+                <a href="/inventory" class="icon-btn">
+                    <span class="material-icons">arrow_back</span>
+                </a>
+                <h1>Restock</h1>
+            </div>
+        </header>
+        
+        <main class="app-main">
+            <% if (error) { %>
+                <div class="alert alert-error">
+                    <span class="material-icons">error</span>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <div class="product-info-card">
+                <h2><%= product.product_name %></h2>
+                <div class="info-row">
+                    <span>Current Stock:</span>
+                    <strong><%= product.current_stock_cartons %> cartons</strong>
+                </div>
+                <div class="info-row">
+                    <span>Selling Price:</span>
+                    <strong>₵<%= parseFloat(product.selling_price_per_piece).toFixed(2) %> / piece</strong>
+                </div>
+                <div class="info-row">
+                    <span>Pieces per Carton:</span>
+                    <strong><%= product.pieces_per_carton %></strong>
+                </div>
+            </div>
+            
+            <form method="POST" action="/inventory/<%= product.id %>/restock" class="form-card">
+                <div class="form-group">
+                    <label for="cartons_received">
+                        <span class="material-icons">inventory</span>
+                        Cartons Received
+                    </label>
+                    <input type="number" id="cartons_received" name="cartons_received" 
+                           required min="1" value="1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="cost_price_per_carton">
+                        <span class="material-icons">payments</span>
+                        Cost Price per Carton (₵)
+                    </label>
+                    <input type="number" id="cost_price_per_carton" name="cost_price_per_carton" 
+                           required min="0.01" step="0.01">
+                    <small>How much you paid for ONE carton</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="supplier">
+                        <span class="material-icons">local_shipping</span>
+                        Supplier (Optional)
+                    </label>
+                    <input type="text" id="supplier" name="supplier" 
+                           placeholder="e.g., Cold Store Ltd">
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-large">
+                    <span class="material-icons">save</span>
+                    Add Stock
+                </button>
+            </form>
+        </main>
+    </div>
+</body>
+</html>

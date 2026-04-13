@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>New Sale - <%= shop.name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .product-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--shadow);
+        }
+        
+        .product-btn:hover {
+            border-color: var(--primary);
+            background: #E8F5E9;
+        }
+        
+        .product-btn.out-of-stock {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .product-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .product-price {
+            color: var(--primary-dark);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .product-stock {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .selected-product {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+        
+        .selected-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .selected-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .quantity-input {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .quantity-input label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .quantity-input input {
+            flex: 1;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        .price-preview {
+            text-align: right;
+            padding: 12px;
+            background: #E8F5E9;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .price-preview .label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .price-preview .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+        
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--surface);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .cart-item-info {
+            flex: 1;
+        }
+        
+        .cart-item-name {
+            font-weight: 500;
+        }
+        
+        .cart-item-details {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .cart-item-price {
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+        
+        .cart-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 12px;
+        }
+        
+        .cart-summary {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .checkout-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 18px;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-left">
+                <h1>New Sale</h1>
+            </div>
+            <div class="header-right">
+                <span class="date-badge">Cart: <%= cartCount || 0 %> items</span>
+                <a href="/dashboard" class="icon-btn">
+                    <span class="material-icons">close</span>
+                </a>
+            </div>
+        </header>
+        
+        <main class="app-main">
+            <!-- Alerts -->
+            <% if (error) { %>
+                <div class="alert alert-error">
+                    <span class="material-icons">error</span>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <% if (success) { %>
+                <div class="alert alert-success">
+                    <span class="material-icons">check_circle</span>
+                    <%= success %>
+                </div>
+            <% } %>
+            
+           <!-- Product Selection -->
+<div class="section">
+    <h3>Select Product</h3>
+    <div class="product-grid">
+        <% products.forEach(product => { %>
+            <form method="POST" action="/sales/add" style="display: contents;">
+                <input type="hidden" name="product_id" value="<%= product.id %>">
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" class="product-btn <%= !product.in_stock ? 'no-stock' : '' %> <%= product.is_low_stock ? 'low-stock' : '' %>">
+                    <div class="product-name"><%= product.product_name %></div>
+                    <div class="product-price">₵<%= parseFloat(product.selling_price_per_piece).toFixed(2) %> / <%= product.selling_unit %></div>
+                    <div class="product-stock">
+                        <% if (product.available_units > 0) { %>
+                            <span class="stock-available"><%= product.available_units %> <%= product.selling_unit %>(s)</span>
+                        <% } else { %>
+                            <span class="stock-out">Out of stock - Click to add anyway</span>
+                        <% } %>
+                    </div>
+                </button>
+            </form>
+        <% }) %>
+    </div>
+</div>
+            
+            <!-- Quick Add by Quantity -->
+            <div class="selected-product">
+                <form method="POST" action="/sales/add">
+                    <div class="selected-header">
+                        <span class="selected-name">Quick Add</span>
+                    </div>
+                    
+                    <div class="form-group">
+    <select name="product_id" required>
+        <option value="">Select product...</option>
+        <% products.forEach(product => { %>
+            <option value="<%= product.id %>">
+                <%= product.product_name %> - ₵<%= parseFloat(product.selling_price_per_piece).toFixed(2) %>/<%= product.selling_unit %>
+                (<%= product.available_units %> available)
+                <%= !product.in_stock ? '⚠️ OUT OF STOCK' : '' %>
+            </option>
+        <% }) %>
+    </select>
+</div>>
+                    
+                    <div class="quantity-input">
+                        <label>Quantity (<span id="unit-label">units</span>):</label>
+                        <input type="number" name="quantity" value="1" min="0.1" step="0.1" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span class="material-icons">add_shopping_cart</span>
+                        Add to Cart
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Cart -->
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>Shopping Cart</h3>
+                    <% if (cart.length > 0) { %>
+                        <form method="POST" action="/sales/clear">
+                            <button type="submit" class="btn-text">Clear All</button>
+                        </form>
+                    <% } %>
+                </div>
+                
+                <% if (cart.length > 0) { %>
+                    <% cart.forEach((item, index) => { %>
+    <div class="cart-item">
+        <div class="cart-item-info">
+            <div class="cart-item-name"><%= item.product_name %></div>
+            <div class="cart-item-details">
+                <%= item.quantity %> <%= item.selling_unit %>(s) × ₵<%= item.unit_price.toFixed(2) %>
+            </div>
+            <div class="cart-item-price">₵<%= item.total_price.toFixed(2) %></div>
+        </div>
+        <div class="cart-item-actions">
+            <form method="POST" action="/sales/update" style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <input type="hidden" name="index" value="<%= index %>">
+                <input type="number" name="quantity" value="<%= item.quantity %>" 
+                       min="0.1" step="0.1" style="width: 70px; padding: 6px; border-radius: 8px; border: 1px solid var(--border);">
+                <input type="number" name="unit_price" value="<%= item.unit_price.toFixed(2) %>" 
+                       min="0.01" step="0.01" style="width: 80px; padding: 6px; border-radius: 8px; border: 1px solid var(--border);"
+                       placeholder="Price">
+                <button type="submit" class="icon-btn" style="background: none;">
+                    <span class="material-icons">check</span>
+                </button>
+            </form>
+            <form method="POST" action="/sales/remove">
+                <input type="hidden" name="index" value="<%= index %>">
+                <button type="submit" class="icon-btn text-danger">
+                    <span class="material-icons">delete</span>
+                </button>
+            </form>
+        </div>
+    </div>
+<% }) %>
+                    
+                    <div class="cart-summary">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                            <span style="font-size: 18px; font-weight: 600;">Total:</span>
+                            <span style="font-size: 24px; font-weight: 700; color: var(--primary-dark);">₵<%= cartTotal.toFixed(2) %></span>
+                        </div>
+                        
+                        <form method="POST" action="/sales/complete">
+                            <div class="form-group">
+                                <label>Payment Method</label>
+                                <select name="payment_method">
+                                    <option value="cash">Cash</option>
+                                    <option value="transfer">Bank Transfer</option>
+                                    <option value="momo">Mobile Money</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Amount Received (₵)</label>
+                                <input type="number" name="amount_paid" value="<%= cartTotal.toFixed(2) %>" 
+                                       min="<%= cartTotal.toFixed(2) %>" step="0.01" required>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success checkout-btn">
+                                <span class="material-icons">check_circle</span>
+                                Complete Sale
+                            </button>
+                        </form>
+                    </div>
+                <% } else { %>
+                    <div class="empty-state-small">
+                        <span class="material-icons">shopping_cart</span>
+                        <p>Cart is empty. Select products above.</p>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+        
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-icons">home</span>
+                <span>Home</span>
+            </a>
+            <a href="/inventory" class="nav-item">
+                <span class="material-icons">inventory</span>
+                <span>Stock</span>
+            </a>
+            <a href="/sales" class="nav-item active">
+                <span class="material-icons">point_of_sale</span>
+                <span>Sell</span>
+            </a>
+            <a href="/reports" class="nav-item">
+                <span class="material-icons">bar_chart</span>
+                <span>Reports</span>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>

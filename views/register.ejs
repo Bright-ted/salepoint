@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Your Shop - Sale Point</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <span class="material-icons auth-icon">storefront</span>
+                <h2>Register Your Shop</h2>
+                <p>Start managing your cold store inventory</p>
+            </div>
+            
+            <% if (error) { %>
+                <div class="alert alert-error">
+                    <span class="material-icons">error</span>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <form method="POST" action="/register" class="auth-form">
+                <div class="form-group">
+                    <label for="shop_name">
+                        <span class="material-icons">store</span>
+                        Shop Name *
+                    </label>
+                    <input type="text" id="shop_name" name="shop_name" 
+                           placeholder="e.g., Sister's Cold Store" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="owner_name">
+                        <span class="material-icons">person</span>
+                        Owner Name (Optional)
+                    </label>
+                    <input type="text" id="owner_name" name="owner_name" 
+                           placeholder="Your full name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">
+                        <span class="material-icons">email</span>
+                        Email Address *
+                    </label>
+                    <input type="email" id="email" name="email" 
+                           placeholder="you@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">
+                        <span class="material-icons">lock</span>
+                        Password *
+                    </label>
+                    <input type="password" id="password" name="password" 
+                           placeholder="At least 6 characters" required minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm_password">
+                        <span class="material-icons">lock</span>
+                        Confirm Password *
+                    </label>
+                    <input type="password" id="confirm_password" name="confirm_password" 
+                           placeholder="Re-enter password" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-large">
+                    <span class="material-icons">check_circle</span>
+                    Create Account
+                </button>
+            </form>
+            
+            <div class="auth-footer">
+                Already have a shop? <a href="/login">Sign in</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

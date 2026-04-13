@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inventory - <%= shop.name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1>Inventory</h1>
+            </div>
+            <div class="header-right">
+                <a href="/logout" class="icon-btn">
+                    <span class="material-icons">logout</span>
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Alerts -->
+            <% if (success) { %>
+                <div class="alert alert-success">
+                    <span class="material-icons">check_circle</span>
+                    <%= success %>
+                </div>
+            <% } %>
+            
+            <% if (error) { %>
+                <div class="alert alert-error">
+                    <span class="material-icons">error</span>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <!-- Add Product Button -->
+            <div class="page-header">
+                <h2>Products</h2>
+                <a href="/inventory/add" class="btn btn-primary">
+                    <span class="material-icons">add</span>
+                    Add Product
+                </a>
+            </div>
+            
+            <!-- Products List -->
+            <% if (products.length === 0) { %>
+                <div class="empty-state">
+                    <span class="material-icons">inventory_2</span>
+                    <h3>No products yet</h3>
+                    <p>Add your first product to start tracking inventory</p>
+                    <a href="/inventory/add" class="btn btn-primary">Add Product</a>
+                </div>
+            <% } else { %>
+                <div class="product-list">
+                    <% products.forEach(product => { 
+                        const isLowStock = product.current_stock_cartons <= product.low_stock_threshold;
+                    %>
+                        <div class="product-card <%= isLowStock ? 'low-stock' : '' %>">
+                            <div class="product-header">
+                                <div>
+                                    <h3><%= product.product_name %></h3>
+                                    <span class="product-category"><%= product.category %></span>
+                                </div>
+                                <div class="product-actions">
+                                    <a href="/inventory/<%= product.id %>/delete" 
+                                       class="icon-btn text-danger"
+                                       onclick="return confirm('Delete <%= product.product_name %>?')">
+                                        <span class="material-icons">delete</span>
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="product-stats">
+    <div class="stat-row">
+        <span class="stat-label">Stock</span>
+        <span class="stat-value <%= isLowStock ? 'warning' : '' %>">
+            <%= product.current_stock_cartons %> cartons
+            <% if (product.current_stock_loose_pieces > 0) { %>
+                + <%= product.current_stock_loose_pieces %> <%= product.selling_unit %>s
+            <% } %>
+        </span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">Sells by</span>
+        <span class="stat-value"><%= product.selling_unit %></span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">Price per <%= product.selling_unit %></span>
+        <span class="stat-value">₵<%= parseFloat(product.selling_price_per_piece).toFixed(2) %></span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label"><%= product.selling_unit === 'piece' ? 'Pieces' : 'KG' %> per carton</span>
+        <span class="stat-value"><%= product.pieces_per_carton %></span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">Carton value</span>
+        <span class="stat-value">₵<%= (product.pieces_per_carton * product.selling_price_per_piece).toFixed(2) %></span>
+    </div>
+</div>
+                            
+                            <div class="product-footer">
+                                <a href="/inventory/<%= product.id %>/restock" class="btn btn-outline">
+                                    <span class="material-icons">add_shopping_cart</span>
+                                    Restock
+                                </a>
+                                <a href="/sales/new?product=<%= product.id %>" class="btn btn-primary">
+                                    <span class="material-icons">shopping_cart</span>
+                                    Sell
+                                </a>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </main>
+        
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-icons">home</span>
+                <span>Home</span>
+            </a>
+            <a href="/inventory" class="nav-item active">
+                <span class="material-icons">inventory</span>
+                <span>Stock</span>
+            </a>
+            <a href="/sales" class="nav-item">
+                <span class="material-icons">point_of_sale</span>
+                <span>Sell</span>
+            </a>
+            <a href="/reports" class="nav-item">
+                <span class="material-icons">bar_chart</span>
+                <span>Reports</span>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>

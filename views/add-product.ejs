@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Add Product - <%= shop.name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-left">
+                <a href="/inventory" class="icon-btn">
+                    <span class="material-icons">arrow_back</span>
+                </a>
+                <h1>Add Product</h1>
+            </div>
+        </header>
+        
+        <main class="app-main">
+            <% if (error) { %>
+                <div class="alert alert-error">
+                    <span class="material-icons">error</span>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <form method="POST" action="/inventory/add" class="form-card" id="productForm">
+                <!-- Step 1: Basic Info -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Basic Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="product_name">
+                            <span class="material-icons">label</span>
+                            Product Name
+                        </label>
+                        <input type="text" id="product_name" name="product_name" 
+                               placeholder="e.g., Chicken Wings" required
+                               value="<%= formData.product_name || '' %>">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">
+                            <span class="material-icons">category</span>
+                            Category
+                        </label>
+                        <select id="category" name="category">
+                            <option value="Meat" <%= formData.category === 'Meat' ? 'selected' : '' %>>Meat</option>
+                            <option value="Fish" <%= formData.category === 'Fish' ? 'selected' : '' %>>Fish</option>
+                            <option value="Ice Cream" <%= formData.category === 'Ice Cream' ? 'selected' : '' %>>Ice Cream</option>
+                            <option value="Vegetables" <%= formData.category === 'Vegetables' ? 'selected' : '' %>>Vegetables</option>
+                            <option value="Oil" <%= formData.category === 'Oil' ? 'selected' : '' %>>Oil</option>
+                            <option value="Eggs" <%= formData.category === 'Eggs' ? 'selected' : '' %>>Eggs</option>
+                            <option value="Other" <%= formData.category === 'Other' ? 'selected' : '' %>>Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Carton/Box Cost -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Carton/Box Cost</h3>
+                    
+                    <div class="form-group">
+                        <label for="carton_cost">
+                            <span class="material-icons">payments</span>
+                            How much does ONE carton/box cost you? (₵)
+                        </label>
+                        <input type="number" id="carton_cost" name="carton_cost" 
+                               placeholder="e.g., 200.00" required min="0.01" step="0.01"
+                               value="<%= formData.carton_cost || '' %>"
+                               oninput="calculateUnitCost()">
+                        <small>This is what YOU pay to buy one carton</small>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Selling Method -->
+                <div class="form-section">
+                    <h3 class="form-section-title">How do you sell this?</h3>
+                    
+                    <div class="form-group">
+                        <label for="selling_unit">
+                            <span class="material-icons">scale</span>
+                            Selling Method
+                        </label>
+                        <select id="selling_unit" name="selling_unit" required onchange="toggleUnitFields()">
+                            <option value="">-- Select method --</option>
+                            <option value="piece" <%= formData.selling_unit === 'piece' ? 'selected' : '' %>>By Piece (e.g., eggs, cans, bottles)</option>
+                            <option value="kg" <%= formData.selling_unit === 'kg' ? 'selected' : '' %>>By Kilogram (e.g., meat, fish)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Quantity in Carton -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Quantity per Carton/Box</h3>
+                    
+                    <div id="piece-fields" style="display: none;">
+                        <div class="form-group">
+                            <label for="pieces_per_carton">
+                                <span class="material-icons">grid_view</span>
+                                How many pieces in ONE carton?
+                            </label>
+                            <input type="number" id="pieces_per_carton" name="pieces_per_carton" 
+                                   placeholder="e.g., 20" min="1"
+                                   value="<%= formData.pieces_per_carton || '' %>"
+                                   oninput="calculateUnitCost()">
+                            <small>e.g., 20 pieces of chicken in one box</small>
+                        </div>
+                    </div>
+                    
+                    <div id="kg-fields" style="display: none;">
+                        <div class="form-group">
+                            <label for="kg_per_carton">
+                                <span class="material-icons">balance</span>
+                                How many KG in ONE carton?
+                            </label>
+                            <input type="number" id="kg_per_carton" name="kg_per_carton" 
+                                   placeholder="e.g., 10" min="0.1" step="0.1"
+                                   value="<%= formData.kg_per_carton || '' %>"
+                                   oninput="calculateUnitCost()">
+                            <small>e.g., 10kg of chicken in one box</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Selling Price -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Selling Price</h3>
+                    
+                    <div class="form-group">
+                        <label for="selling_price">
+                            <span class="material-icons">sell</span>
+                            How much do you sell ONE <span id="unit-label">unit</span> for? (₵)
+                        </label>
+                        <input type="number" id="selling_price" name="selling_price" 
+                               placeholder="e.g., 15.00" required min="0.01" step="0.01"
+                               value="<%= formData.selling_price || '' %>"
+                               oninput="calculateProfit()">
+                        <small>This is what CUSTOMERS pay you per <span id="unit-label-small">unit</span></small>
+                    </div>
+                </div>
+                
+                <!-- Summary Card -->
+                <div class="summary-card" id="summaryCard" style="display: none;">
+                    <h3>Summary</h3>
+                    <div class="summary-row">
+                        <span>Cost per carton:</span>
+                        <strong id="summary-carton-cost">₵0.00</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Your cost per <span id="summary-unit">unit</span>:</span>
+                        <strong id="summary-unit-cost">₵0.00</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Selling price per <span id="summary-unit2">unit</span>:</span>
+                        <strong id="summary-selling-price">₵0.00</strong>
+                    </div>
+                    <div class="summary-row highlight">
+                        <span>Profit per <span id="summary-unit3">unit</span>:</span>
+                        <strong id="summary-profit">₵0.00</strong>
+                    </div>
+                    <div class="summary-row highlight">
+                        <span>Profit per carton:</span>
+                        <strong id="summary-carton-profit">₵0.00</strong>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-large">
+                    <span class="material-icons">save</span>
+                    Save Product
+                </button>
+            </form>
+        </main>
+    </div>
+    
+    <script>
+        function toggleUnitFields() {
+            const unit = document.getElementById('selling_unit').value;
+            const pieceFields = document.getElementById('piece-fields');
+            const kgFields = document.getElementById('kg-fields');
+            const unitLabel = document.getElementById('unit-label');
+            const unitLabelSmall = document.getElementById('unit-label-small');
+            const summaryUnit = document.getElementById('summary-unit');
+            const summaryUnit2 = document.getElementById('summary-unit2');
+            const summaryUnit3 = document.getElementById('summary-unit3');
+            
+            if (unit === 'piece') {
+                pieceFields.style.display = 'block';
+                kgFields.style.display = 'none';
+                unitLabel.textContent = 'piece';
+                unitLabelSmall.textContent = 'piece';
+                if (summaryUnit) summaryUnit.textContent = 'piece';
+                if (summaryUnit2) summaryUnit2.textContent = 'piece';
+                if (summaryUnit3) summaryUnit3.textContent = 'piece';
+                document.getElementById('pieces_per_carton').required = true;
+                document.getElementById('kg_per_carton').required = false;
+            } else if (unit === 'kg') {
+                pieceFields.style.display = 'none';
+                kgFields.style.display = 'block';
+                unitLabel.textContent = 'kg';
+                unitLabelSmall.textContent = 'kg';
+                if (summaryUnit) summaryUnit.textContent = 'kg';
+                if (summaryUnit2) summaryUnit2.textContent = 'kg';
+                if (summaryUnit3) summaryUnit3.textContent = 'kg';
+                document.getElementById('pieces_per_carton').required = false;
+                document.getElementById('kg_per_carton').required = true;
+            } else {
+                pieceFields.style.display = 'none';
+                kgFields.style.display = 'none';
+                unitLabel.textContent = 'unit';
+                unitLabelSmall.textContent = 'unit';
+            }
+            
+            calculateUnitCost();
+        }
+        
+        function getQuantity() {
+            const unit = document.getElementById('selling_unit').value;
+            if (unit === 'piece') {
+                return parseFloat(document.getElementById('pieces_per_carton').value) || 0;
+            } else if (unit === 'kg') {
+                return parseFloat(document.getElementById('kg_per_carton').value) || 0;
+            }
+            return 0;
+        }
+        
+        function calculateUnitCost() {
+            const cartonCost = parseFloat(document.getElementById('carton_cost').value) || 0;
+            const quantity = getQuantity();
+            const unit = document.getElementById('selling_unit').value;
+            const sellingPrice = parseFloat(document.getElementById('selling_price').value) || 0;
+            
+            if (cartonCost > 0 && quantity > 0 && unit) {
+                const unitCost = cartonCost / quantity;
+                const profitPerUnit = sellingPrice - unitCost;
+                const cartonProfit = profitPerUnit * quantity;
+                
+                document.getElementById('summary-carton-cost').textContent = '₵' + cartonCost.toFixed(2);
+                document.getElementById('summary-unit-cost').textContent = '₵' + unitCost.toFixed(2);
+                document.getElementById('summary-selling-price').textContent = '₵' + sellingPrice.toFixed(2);
+                document.getElementById('summary-profit').textContent = '₵' + profitPerUnit.toFixed(2);
+                document.getElementById('summary-carton-profit').textContent = '₵' + cartonProfit.toFixed(2);
+                
+                document.getElementById('summaryCard').style.display = 'block';
+            } else {
+                document.getElementById('summaryCard').style.display = 'none';
+            }
+        }
+        
+        function calculateProfit() {
+            calculateUnitCost();
+        }
+        
+        // Run on page load
+        toggleUnitFields();
+    </script>
+</body>
+</html>

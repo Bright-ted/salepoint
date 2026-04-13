@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reports - <%= shop.name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        .report-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: var(--surface);
+            padding: 8px;
+            border-radius: 16px;
+        }
+        
+        .report-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .report-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .report-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+        
+        .report-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-item {
+            text-align: center;
+            padding: 16px;
+            background: var(--background);
+            border-radius: 12px;
+        }
+        
+        .summary-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+        
+        .summary-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .sales-table {
+            width: 100%;
+        }
+        
+        .sales-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .sales-row:last-child {
+            border-bottom: none;
+        }
+        
+        .date-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .date-selector select {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .top-products {
+            margin-top: 16px;
+        }
+        
+        .product-rank {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .rank-number {
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .rank-info {
+            flex: 1;
+        }
+        
+        .rank-name {
+            font-weight: 500;
+        }
+        
+        .rank-sales {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .rank-value {
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-left">
+                <h1>Reports</h1>
+            </div>
+            <div class="header-right">
+                <a href="/logout" class="icon-btn">
+                    <span class="material-icons">logout</span>
+                </a>
+            </div>
+        </header>
+        
+        <main class="app-main">
+            <!-- Date Range Selector -->
+            <div class="date-selector">
+                <select id="periodSelect" onchange="window.location.href='/reports?period='+this.value">
+                    <option value="today" <%= period === 'today' ? 'selected' : '' %>>Today</option>
+                    <option value="yesterday" <%= period === 'yesterday' ? 'selected' : '' %>>Yesterday</option>
+                    <option value="this_week" <%= period === 'this_week' ? 'selected' : '' %>>This Week</option>
+                    <option value="this_month" <%= period === 'this_month' ? 'selected' : '' %>>This Month</option>
+                    <option value="last_month" <%= period === 'last_month' ? 'selected' : '' %>>Last Month</option>
+                </select>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div class="report-card">
+                <div class="report-title">Summary</div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-value">₵<%= summary.totalSales.toFixed(2) %></div>
+                        <div class="summary-label">Total Sales</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value"><%= summary.transactionCount %></div>
+                        <div class="summary-label">Transactions</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">₵<%= summary.averageSale.toFixed(2) %></div>
+                        <div class="summary-label">Average Sale</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">₵<%= summary.totalProfit.toFixed(2) %></div>
+                        <div class="summary-label">Est. Profit</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Sales -->
+            <div class="report-card">
+                <div class="report-title">Recent Transactions</div>
+                <% if (sales.length > 0) { %>
+                    <div class="sales-table">
+                        <% sales.forEach(sale => { %>
+                            <div class="sales-row">
+                                <div>
+                                    <div style="font-weight: 500;">
+                                        <%= new Date(sale.created_at).toLocaleDateString('en-GB', { 
+                                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+                                        }) %>
+                                    </div>
+                                    <div style="font-size: 13px; color: var(--text-secondary);">
+                                        <%= sale.payment_method %> • <%= sale.item_count %> items
+                                    </div>
+                                </div>
+                                <div style="font-weight: 600; color: var(--primary-dark);">
+                                    ₵<%= parseFloat(sale.total_amount).toFixed(2) %>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="empty-state-small">
+                        <span class="material-icons">receipt_long</span>
+                        <p>No sales in this period</p>
+                    </div>
+                <% } %>
+            </div>
+            
+            <!-- Top Selling Products -->
+            <% if (topProducts.length > 0) { %>
+                <div class="report-card">
+                    <div class="report-title">Top Selling Products</div>
+                    <div class="top-products">
+                        <% topProducts.forEach((product, index) => { %>
+                            <div class="product-rank">
+                                <div class="rank-number"><%= index + 1 %></div>
+                                <div class="rank-info">
+                                    <div class="rank-name"><%= product.product_name %></div>
+                                    <div class="rank-sales">
+                                        <%= product.total_quantity %> <%= product.selling_unit %>(s) sold
+                                    </div>
+                                </div>
+                                <div class="rank-value">₵<%= product.total_revenue.toFixed(2) %></div>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            <% } %>
+        </main>
+        
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-icons">home</span>
+                <span>Home</span>
+            </a>
+            <a href="/inventory" class="nav-item">
+                <span class="material-icons">inventory</span>
+                <span>Stock</span>
+            </a>
+            <a href="/sales" class="nav-item">
+                <span class="material-icons">point_of_sale</span>
+                <span>Sell</span>
+            </a>
+            <a href="/reports" class="nav-item active">
+                <span class="material-icons">bar_chart</span>
+                <span>Reports</span>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>
