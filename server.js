@@ -50,6 +50,13 @@ app.get('/', (req, res) => {
     res.render('index');
 });
 
-app.listen(PORT, () => {
-    console.log(`Sale Point running at http://localhost:${PORT}`);
-});
+// Export app for Vercel serverless environment
+module.exports = app;
+
+// Start server locally (not used on Vercel)
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Sale Point running at http://localhost:${PORT}`);
+    });
+}
