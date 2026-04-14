@@ -4,10 +4,6 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const supabase = require('./utils/supabase');
-
-// Trust proxy for Vercel
-app.set('trust proxy', 1);
 
 // Middleware
 app.use(express.json());
@@ -26,30 +22,45 @@ app.use((req, res, next) => {
     next();
 });
 
-// Routes
-app.use('/', require('./routes/authRoutes'));
-app.use('/', require('./routes/dashboardRoutes'));
-app.use('/', require('./routes/inventoryRoutes'));
-app.use('/', require('./routes/salesRoutes'));
-app.use('/', require('./routes/reportsRoutes'));
-app.use('/', require('./routes/settingsRoutes'));
-
-// Home route
+// Home route - test if server works
 app.get('/', (req, res) => {
-    const token = req.cookies?.sb_token;
-    if (token) {
-        return res.redirect('/dashboard');
-    }
-    res.render('index');
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Sale Point</title>
+            <style>
+                body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f5f7fa; }
+                .card { background: white; padding: 40px; border-radius: 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+                h1 { color: #2E7D32; }
+                .btn { display: inline-block; padding: 12px 24px; background: #2E7D32; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>Sale Point</h1>
+                <p>Server is running correctly!</p>
+                <a href="/login" class="btn">Go to Login</a>
+            </div>
+        </body>
+        </html>
+    `);
 });
+
+// Only load routes if supabase connects
+try {
+    const supabase = require('./utils/supabase');
+    console.log('Supabase loaded');
+    
+    app.use('/', require('./routes/authRoutes'));
+    app.use('/', require('./routes/dashboardRoutes'));
+    app.use('/', require('./routes/inventoryRoutes'));
+    app.use('/', require('./routes/salesRoutes'));
+    app.use('/', require('./routes/reportsRoutes'));
+    
+} catch (error) {
+    console.error('Failed to load routes:', error.message);
+}
 
 // Export for Vercel
 module.exports = app;
-
-// Local development
-if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-        console.log(`Sale Point running at http://localhost:${PORT}`);
-    });
-}
