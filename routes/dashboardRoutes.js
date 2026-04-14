@@ -3,26 +3,55 @@ const router = express.Router();
 const supabase = require('../utils/supabase');
 
 // Middleware to check if user is logged in
-const requireAuth = (req, res, next) => {
-    if (!req.session.user || !req.session.shop) {
+const requireAuth = async (req, res, next) => {
+    const token = req.cookies?.sb_token;
+    
+    if (!token) {
         return res.redirect('/login');
     }
-    next();
+    
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !user) {
+            res.clearCookie('sb_token');
+            return res.redirect('/login');
+        }
+        
+        // Get shop details
+        const { data: shop, error: shopError } = await supabase
+            .from('shops')
+            .select('id, shop_name, theme_color')
+            .eq('owner_email', user.email)
+            .single();
+        
+        if (shopError || !shop) {
+            return res.redirect('/login');
+        }
+        
+        req.user = user;
+        req.shop = shop;
+        res.locals.user = user;
+        res.locals.shop = shop;
+        
+        next();
+    } catch (error) {
+        console.error('Auth error:', error);
+        res.redirect('/login');
+    }
 };
 
 // GET - Dashboard
 router.get('/dashboard', requireAuth, async (req, res) => {
-    const shopId = req.session.shop.id;
-    
-    // Get today's date range
+    const shopId = req.shop.id;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
     try {
-        // 1. Get today's sales summary
-        const { data: todaySales, error: salesError } = await supabase
+        // Get today's sales
+        const { data: todaySales } = await supabase
             .from('sales')
             .select('total_amount, total_cost')
             .eq('shop_id', shopId)
@@ -33,7 +62,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
         let totalProfit = 0;
         let transactionCount = 0;
         
-        if (todaySales && todaySales.length > 0) {
+        if (todaySales) {
             transactionCount = todaySales.length;
             todaySales.forEach(sale => {
                 totalSales += parseFloat(sale.total_amount || 0);
@@ -41,63 +70,49 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             });
         }
         
-        // 2. Get low stock products (calculate available units)
-        const { data: allProducts, error: productsError } = await supabase
+        // Get products
+        const { data: products } = await supabase
             .from('products')
             .select('*')
             .eq('shop_id', shopId);
         
-        let productCount = 0;
-        let lowStockProducts = [];
+        const productCount = products ? products.length : 0;
         
-        if (allProducts && allProducts.length > 0) {
-            productCount = allProducts.length;
-            
-            // Find products with low stock
-            lowStockProducts = allProducts.filter(product => {
-                const totalUnits = (product.current_stock_cartons * product.pieces_per_carton) + product.current_stock_loose_pieces;
-                const threshold = product.low_stock_threshold * product.pieces_per_carton;
-                return totalUnits <= threshold;
-            }).slice(0, 5).map(product => ({
-                id: product.id,
-                product_name: product.product_name,
-                current_stock_cartons: product.current_stock_cartons,
-                current_stock_loose_pieces: product.current_stock_loose_pieces,
-                selling_unit: product.selling_unit,
-                available_units: (product.current_stock_cartons * product.pieces_per_carton) + product.current_stock_loose_pieces
-            }));
-        }
+        const lowStockProducts = products ? products.filter(p => {
+            const totalUnits = (p.current_stock_cartons * p.pieces_per_carton) + p.current_stock_loose_pieces;
+            return totalUnits <= (p.low_stock_threshold * p.pieces_per_carton);
+        }).slice(0, 5).map(p => ({
+            id: p.id,
+            product_name: p.product_name,
+            available_units: (p.current_stock_cartons * p.pieces_per_carton) + p.current_stock_loose_pieces,
+            selling_unit: p.selling_unit
+        })) : [];
         
-        // 3. Get recent transactions with item details
-        const { data: recentSales, error: recentError } = await supabase
+        // Get recent sales
+        const { data: recentSales } = await supabase
             .from('sales')
             .select('*')
             .eq('shop_id', shopId)
             .order('created_at', { ascending: false })
             .limit(5);
         
-        let formattedSales = [];
+        const formattedSales = [];
         
-        if (recentSales && recentSales.length > 0) {
-            // For each sale, get its items
+        if (recentSales) {
             for (const sale of recentSales) {
-                const { data: saleItems } = await supabase
+                const { data: items } = await supabase
                     .from('sale_items')
-                    .select(`
-                        quantity:pieces_sold,
-                        product_id
-                    `)
+                    .select('pieces_sold, product_id')
                     .eq('sale_id', sale.id);
                 
-                let itemCount = saleItems ? saleItems.length : 0;
+                let itemCount = items ? items.length : 0;
                 let firstProductName = 'Sale';
                 
-                if (saleItems && saleItems.length > 0) {
-                    const firstItem = saleItems[0];
+                if (items && items.length > 0) {
                     const { data: product } = await supabase
                         .from('products')
                         .select('product_name')
-                        .eq('id', firstItem.product_id)
+                        .eq('id', items[0].product_id)
                         .single();
                     
                     if (product) {
@@ -117,7 +132,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
         }
         
         res.render('dashboard', {
-            shop: req.session.shop,
+            shop: req.shop,
             stats: {
                 todaySales: totalSales.toFixed(2),
                 todayProfit: totalProfit.toFixed(2),
@@ -132,17 +147,10 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Dashboard error:', error);
         res.render('dashboard', {
-            shop: req.session.shop,
-            stats: {
-                todaySales: '0.00',
-                todayProfit: '0.00',
-                transactionCount: 0,
-                productCount: 0,
-                lowStockCount: 0
-            },
+            shop: req.shop,
+            stats: { todaySales: '0.00', todayProfit: '0.00', transactionCount: 0, productCount: 0 },
             lowStockProducts: [],
-            recentSales: [],
-            error: 'Failed to load dashboard data'
+            recentSales: []
         });
     }
 });

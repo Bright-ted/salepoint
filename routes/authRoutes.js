@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../utils/supabase');
-const bcrypt = require('bcryptjs');
 
 // GET - Landing/Login Page
 router.get('/login', (req, res) => {
-    if (req.session.user) {
+    const token = req.cookies?.sb_token;
+    if (token) {
         return res.redirect('/dashboard');
     }
     res.render('login', { error: null });
@@ -13,7 +13,8 @@ router.get('/login', (req, res) => {
 
 // GET - Registration Page
 router.get('/register', (req, res) => {
-    if (req.session.user) {
+    const token = req.cookies?.sb_token;
+    if (token) {
         return res.redirect('/dashboard');
     }
     res.render('register', { error: null });
@@ -37,7 +38,7 @@ router.post('/register', async (req, res) => {
     }
     
     try {
-        // Check if shop already exists with this email
+        // Check if shop already exists
         const { data: existingShop } = await supabase
             .from('shops')
             .select('id')
@@ -58,16 +59,14 @@ router.post('/register', async (req, res) => {
             return res.render('register', { error: authError.message });
         }
         
-        // Insert shop record into shops table
+        // Insert shop record
         const { data: shopData, error: shopError } = await supabase
             .from('shops')
-            .insert([
-                {
-                    shop_name: shop_name,
-                    owner_email: email,
-                    owner_name: owner_name || null
-                }
-            ])
+            .insert([{
+                shop_name: shop_name,
+                owner_email: email,
+                owner_name: owner_name || null
+            }])
             .select()
             .single();
         
@@ -75,15 +74,15 @@ router.post('/register', async (req, res) => {
             return res.render('register', { error: 'Failed to create shop record' });
         }
         
-        // Auto-login after registration
-        req.session.user = {
-            id: authData.user.id,
-            email: email
-        };
-        req.session.shop = {
-            id: shopData.id,
-            name: shopData.shop_name
-        };
+        // Set auth cookie
+        if (authData.session) {
+            res.cookie('sb_token', authData.session.access_token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            });
+        }
         
         res.redirect('/dashboard');
         
@@ -112,7 +111,7 @@ router.post('/login', async (req, res) => {
             return res.render('login', { error: 'Invalid email or password' });
         }
         
-        // Get shop details
+        // Check if shop exists
         const { data: shopData, error: shopError } = await supabase
             .from('shops')
             .select('id, shop_name')
@@ -123,15 +122,15 @@ router.post('/login', async (req, res) => {
             return res.render('login', { error: 'Shop not found' });
         }
         
-        // Set session
-        req.session.user = {
-            id: authData.user.id,
-            email: email
-        };
-        req.session.shop = {
-            id: shopData.id,
-            name: shopData.shop_name
-        };
+        // Set auth cookie
+        if (authData.session) {
+            res.cookie('sb_token', authData.session.access_token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            });
+        }
         
         res.redirect('/dashboard');
         
@@ -143,7 +142,7 @@ router.post('/login', async (req, res) => {
 
 // GET - Logout
 router.get('/logout', (req, res) => {
-    req.session.destroy();
+    res.clearCookie('sb_token');
     res.redirect('/login');
 });
 
