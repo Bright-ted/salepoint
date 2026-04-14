@@ -2,16 +2,47 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../utils/supabase');
 
-const requireAuth = (req, res, next) => {
-    if (!req.session.user || !req.session.shop) {
+// Auth middleware - UPDATED for cookie-based auth
+const requireAuth = async (req, res, next) => {
+    const token = req.cookies?.sb_token;
+    
+    if (!token) {
         return res.redirect('/login');
     }
-    next();
+    
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !user) {
+            res.clearCookie('sb_token');
+            return res.redirect('/login');
+        }
+        
+        const { data: shop, error: shopError } = await supabase
+            .from('shops')
+            .select('id, shop_name, theme_color')
+            .eq('owner_email', user.email)
+            .single();
+        
+        if (shopError || !shop) {
+            return res.redirect('/login');
+        }
+        
+        req.user = user;
+        req.shop = shop;
+        res.locals.user = user;
+        res.locals.shop = shop;
+        
+        next();
+    } catch (error) {
+        console.error('Auth error:', error);
+        res.redirect('/login');
+    }
 };
 
 // GET - Sales Page
 router.get('/sales', requireAuth, async (req, res) => {
-    const shopId = req.session.shop.id;
+    const shopId = req.shop.id;
     
     // Get all products with stock
     const { data: products, error } = await supabase
@@ -32,12 +63,12 @@ router.get('/sales', requireAuth, async (req, res) => {
     });
     
     // Calculate cart total
-    const cart = req.session.cart || [];
+    const cart = req.session?.cart || [];
     const cartTotal = cart.reduce((sum, item) => sum + item.total_price, 0);
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     
     res.render('sales', {
-        shop: req.session.shop,
+        shop: req.shop,
         products: productsWithStock,
         cart: cart,
         cartTotal: cartTotal,
@@ -54,7 +85,7 @@ router.get('/sales/new', requireAuth, (req, res) => {
 
 // POST - Add to Cart
 router.post('/sales/add', requireAuth, async (req, res) => {
-    const shopId = req.session.shop.id;
+    const shopId = req.shop.id;
     const { product_id, quantity } = req.body;
     
     const qty = parseFloat(quantity) || 0;
@@ -75,9 +106,6 @@ router.post('/sales/add', requireAuth, async (req, res) => {
         return res.redirect('/sales?error=Product not found');
     }
     
-    // Check available stock (only for warning, don't block)
-    const availableUnits = (product.current_stock_cartons * product.pieces_per_carton) + product.current_stock_loose_pieces;
-    
     // Calculate price
     const unitPrice = parseFloat(product.selling_price_per_piece);
     const totalPrice = qty * unitPrice;
@@ -91,14 +119,10 @@ router.post('/sales/add', requireAuth, async (req, res) => {
     const existingIndex = req.session.cart.findIndex(item => item.product_id === product_id);
     
     if (existingIndex !== -1) {
-        // Update existing
         const existing = req.session.cart[existingIndex];
-        const newQty = existing.quantity + qty;
-        
-        existing.quantity = newQty;
-        existing.total_price = newQty * unitPrice;
+        existing.quantity += qty;
+        existing.total_price = existing.quantity * unitPrice;
     } else {
-        // Add new
         req.session.cart.push({
             product_id: product.id,
             product_name: product.product_name,
@@ -110,16 +134,10 @@ router.post('/sales/add', requireAuth, async (req, res) => {
         });
     }
     
-    // If stock is insufficient, add warning but still allow
-    const cartItem = req.session.cart.find(item => item.product_id === product_id);
-    if (cartItem && cartItem.quantity > availableUnits) {
-        return res.redirect(`/sales?warning=Only ${availableUnits} ${product.selling_unit}(s) in stock. You'll need to restock soon.`);
-    }
-    
     res.redirect('/sales');
 });
 
-// POST - Update Cart Item (Quantity and/or Price)
+// POST - Update Cart Item
 router.post('/sales/update', requireAuth, async (req, res) => {
     const { index, quantity, unit_price } = req.body;
     const qty = parseFloat(quantity) || 0;
@@ -131,40 +149,17 @@ router.post('/sales/update', requireAuth, async (req, res) => {
     }
     
     if (qty <= 0) {
-        // Remove item
         req.session.cart.splice(idx, 1);
         return res.redirect('/sales');
     }
     
     const item = req.session.cart[idx];
-    const shopId = req.session.shop.id;
     
-    // Check stock (only for warning)
-    const { data: product } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', item.product_id)
-        .eq('shop_id', shopId)
-        .single();
-    
-    // Update quantity
     item.quantity = qty;
-    
-    // Update price if provided
     if (newUnitPrice > 0) {
         item.unit_price = newUnitPrice;
     }
-    
-    // Recalculate total
     item.total_price = item.quantity * item.unit_price;
-    
-    if (product) {
-        const availableUnits = (product.current_stock_cartons * product.pieces_per_carton) + product.current_stock_loose_pieces;
-        
-        if (qty > availableUnits) {
-            return res.redirect(`/sales?warning=Only ${availableUnits} ${product.selling_unit}(s) in stock. Stock will go negative.`);
-        }
-    }
     
     res.redirect('/sales');
 });
@@ -189,7 +184,7 @@ router.post('/sales/clear', requireAuth, (req, res) => {
 
 // POST - Complete Sale
 router.post('/sales/complete', requireAuth, async (req, res) => {
-    const shopId = req.session.shop.id;
+    const shopId = req.shop.id;
     const { payment_method, amount_paid } = req.body;
     
     const cart = req.session.cart || [];
@@ -206,12 +201,9 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
     }
     
     const change = paid - total;
-    
-    // Calculate total cost of goods sold
     let totalCost = 0;
-    let hasOversell = false;
-    let oversellMessages = [];
     
+    // Calculate costs
     for (const item of cart) {
         const { data: product } = await supabase
             .from('products')
@@ -220,58 +212,22 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
             .eq('shop_id', shopId)
             .single();
         
-        if (!product) {
-            return res.redirect('/sales?error=Product not found');
-        }
-        
-        // Calculate cost for this item
-        // Get the average cost from stock batches or use a default
-        const { data: batches } = await supabase
-            .from('stock_batches')
-            .select('cost_price_per_carton, remaining_cartons')
-            .eq('product_id', item.product_id)
-            .gt('remaining_cartons', 0)
-            .order('created_at', { ascending: true });
-        
-        let itemCost = 0;
-        
-        if (batches && batches.length > 0) {
-            // Use FIFO - First In First Out
-            let unitsToCover = item.quantity;
-            let batchIndex = 0;
+        if (product) {
+            const { data: batches } = await supabase
+                .from('stock_batches')
+                .select('cost_price_per_carton')
+                .eq('product_id', item.product_id)
+                .limit(1)
+                .single();
             
-            while (unitsToCover > 0 && batchIndex < batches.length) {
-                const batch = batches[batchIndex];
-                const unitsInBatch = batch.remaining_cartons * product.pieces_per_carton;
-                const costPerUnit = batch.cost_price_per_carton / product.pieces_per_carton;
-                
-                if (unitsInBatch >= unitsToCover) {
-                    itemCost += unitsToCover * costPerUnit;
-                    unitsToCover = 0;
-                } else {
-                    itemCost += unitsInBatch * costPerUnit;
-                    unitsToCover -= unitsInBatch;
-                    batchIndex++;
-                }
+            if (batches) {
+                const costPerUnit = batches.cost_price_per_carton / product.pieces_per_carton;
+                totalCost += item.quantity * costPerUnit;
             }
-            
-            // If not enough batches, use 0 for remaining
-        } else {
-            // No batch data, cost is 0
-            itemCost = 0;
-        }
-        
-        totalCost += itemCost;
-        
-        const availableUnits = (product.current_stock_cartons * product.pieces_per_carton) + product.current_stock_loose_pieces;
-        
-        if (item.quantity > availableUnits) {
-            hasOversell = true;
-            oversellMessages.push(`${item.product_name}: sold ${item.quantity} but only ${availableUnits} in stock`);
         }
     }
     
-    // Create sale record with calculated cost
+    // Create sale record
     const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert([{
@@ -290,7 +246,7 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
         return res.redirect('/sales?error=Failed to complete sale');
     }
     
-    // Process each item (update stock and batches)
+    // Process each item
     const saleItems = [];
     
     for (const item of cart) {
@@ -305,7 +261,6 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
             let newCartons = product.current_stock_cartons;
             let newLoose = product.current_stock_loose_pieces;
             
-            // First use loose pieces
             if (newLoose > 0) {
                 if (newLoose >= remainingQty) {
                     newLoose -= remainingQty;
@@ -316,17 +271,13 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
                 }
             }
             
-            // Then use full cartons
             if (remainingQty > 0) {
                 const cartonsNeeded = Math.ceil(remainingQty / product.pieces_per_carton);
                 newCartons -= cartonsNeeded;
-                
-                const totalPiecesFromCartons = cartonsNeeded * product.pieces_per_carton;
-                const leftover = totalPiecesFromCartons - remainingQty;
+                const leftover = (cartonsNeeded * product.pieces_per_carton) - remainingQty;
                 newLoose = leftover;
             }
             
-            // Update product stock
             await supabase
                 .from('products')
                 .update({
@@ -334,37 +285,8 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
                     current_stock_loose_pieces: newLoose
                 })
                 .eq('id', item.product_id);
-            
-            // Update stock batches (reduce remaining_cartons)
-            let unitsToDeduct = item.quantity;
-            const { data: batches } = await supabase
-                .from('stock_batches')
-                .select('*')
-                .eq('product_id', item.product_id)
-                .gt('remaining_cartons', 0)
-                .order('created_at', { ascending: true });
-            
-            if (batches) {
-                for (const batch of batches) {
-                    if (unitsToDeduct <= 0) break;
-                    
-                    const unitsInBatch = batch.remaining_cartons * product.pieces_per_carton;
-                    const unitsToRemove = Math.min(unitsInBatch, unitsToDeduct);
-                    const cartonsToRemove = unitsToRemove / product.pieces_per_carton;
-                    
-                    await supabase
-                        .from('stock_batches')
-                        .update({
-                            remaining_cartons: batch.remaining_cartons - cartonsToRemove
-                        })
-                        .eq('id', batch.id);
-                    
-                    unitsToDeduct -= unitsToRemove;
-                }
-            }
         }
         
-        // Record sale item
         await supabase
             .from('sale_items')
             .insert([{
@@ -385,21 +307,15 @@ router.post('/sales/complete', requireAuth, async (req, res) => {
         });
     }
     
-    // Calculate actual profit
-    const actualProfit = total - totalCost;
-    
-    // Store receipt data
+    // Store receipt data in session
     req.session.lastSale = {
         id: sale.id,
         date: new Date().toISOString(),
         items: saleItems,
         total: total,
-        cost: totalCost,
-        profit: actualProfit,
         amount_paid: paid,
         change: change,
-        payment_method: payment_method || 'cash',
-        oversellWarning: hasOversell ? oversellMessages.join(', ') : null
+        payment_method: payment_method || 'cash'
     };
     
     // Clear cart
@@ -417,7 +333,7 @@ router.get('/sales/receipt', requireAuth, (req, res) => {
     }
     
     res.render('receipt', {
-        shop: req.session.shop,
+        shop: req.shop,
         sale: lastSale
     });
 });

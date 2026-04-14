@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../utils/supabase');
 
-// Middleware to check if user is logged in
+// Auth middleware
 const requireAuth = async (req, res, next) => {
     const token = req.cookies?.sb_token;
     
@@ -18,7 +18,6 @@ const requireAuth = async (req, res, next) => {
             return res.redirect('/login');
         }
         
-        // Get shop details
         const { data: shop, error: shopError } = await supabase
             .from('shops')
             .select('id, shop_name, theme_color')
@@ -50,7 +49,6 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     
     try {
-        // Get today's sales
         const { data: todaySales } = await supabase
             .from('sales')
             .select('total_amount, total_cost')
@@ -70,7 +68,6 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             });
         }
         
-        // Get products
         const { data: products } = await supabase
             .from('products')
             .select('*')
@@ -88,7 +85,6 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             selling_unit: p.selling_unit
         })) : [];
         
-        // Get recent sales
         const { data: recentSales } = await supabase
             .from('sales')
             .select('*')
@@ -148,7 +144,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
         console.error('Dashboard error:', error);
         res.render('dashboard', {
             shop: req.shop,
-            stats: { todaySales: '0.00', todayProfit: '0.00', transactionCount: 0, productCount: 0 },
+            stats: { todaySales: '0.00', todayProfit: '0.00', transactionCount: 0, productCount: 0, lowStockCount: 0 },
             lowStockProducts: [],
             recentSales: []
         });

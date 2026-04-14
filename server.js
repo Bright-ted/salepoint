@@ -1,15 +1,30 @@
 const express = require('express');
+const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
 
+// Trust proxy for Vercel
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Session setup - RESTORED
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'salepoint-secret-key-2024',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
 
 // View engine
 app.set('view engine', 'ejs');
@@ -19,80 +34,74 @@ app.set('views', path.join(__dirname, 'views'));
 app.use((req, res, next) => {
     res.locals.error = null;
     res.locals.success = null;
-    res.locals.user = null;
-    res.locals.shop = null;
+    res.locals.user = req.session.user || null;
+    res.locals.shop = req.session.shop || null;
     next();
 });
 
-// Load Supabase
-let supabase;
+// Load routes
 try {
-    supabase = require('./utils/supabase');
-    console.log('✅ Supabase loaded');
+    app.use('/', require('./routes/authRoutes'));
+    console.log('✅ authRoutes loaded');
 } catch (error) {
-    console.error('❌ Supabase failed:', error.message);
+    console.error('❌ authRoutes failed:', error.message);
 }
 
-// Test route
-app.get('/test', (req, res) => {
-    res.send('Server is working!');
-});
+try {
+    app.use('/', require('./routes/dashboardRoutes'));
+    console.log('✅ dashboardRoutes loaded');
+} catch (error) {
+    console.error('❌ dashboardRoutes failed:', error.message);
+}
 
-// Load routes with error catching
-const routes = [
-    { name: 'authRoutes', path: './routes/authRoutes' },
-    { name: 'dashboardRoutes', path: './routes/dashboardRoutes' },
-    { name: 'inventoryRoutes', path: './routes/inventoryRoutes' },
-    { name: 'salesRoutes', path: './routes/salesRoutes' },
-    { name: 'reportsRoutes', path: './routes/reportsRoutes' },
-    { name: 'settingsRoutes', path: './routes/settingsRoutes' }
-];
+try {
+    app.use('/', require('./routes/inventoryRoutes'));
+    console.log('✅ inventoryRoutes loaded');
+} catch (error) {
+    console.error('❌ inventoryRoutes failed:', error.message);
+}
 
-routes.forEach(route => {
-    try {
-        const router = require(route.path);
-        app.use('/', router);
-        console.log(`✅ ${route.name} loaded`);
-    } catch (error) {
-        console.error(`❌ ${route.name} failed:`, error.message);
-    }
-});
+try {
+    app.use('/', require('./routes/salesRoutes'));
+    console.log('✅ salesRoutes loaded');
+} catch (error) {
+    console.error('❌ salesRoutes failed:', error.message);
+}
+
+try {
+    app.use('/', require('./routes/reportsRoutes'));
+    console.log('✅ reportsRoutes loaded');
+} catch (error) {
+    console.error('❌ reportsRoutes failed:', error.message);
+}
+
+try {
+    app.use('/', require('./routes/settingsRoutes'));
+    console.log('✅ settingsRoutes loaded');
+} catch (error) {
+    console.error('❌ settingsRoutes failed:', error.message);
+}
 
 // Home route
 app.get('/', (req, res) => {
-    const token = req.cookies?.sb_token;
-    if (token) {
+    if (req.session.user) {
         return res.redirect('/dashboard');
     }
     res.render('index');
 });
 
-// Catch-all error handler
-app.use((err, req, res, next) => {
-    console.error('Server error:', err.message);
-    res.status(500).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Error</title>
-            <style>
-                body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f5f7fa; }
-                .card { background: white; padding: 40px; border-radius: 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.1); max-width: 500px; }
-                h1 { color: #F44336; }
-                p { color: #666; margin: 20px 0; }
-                .btn { display: inline-block; padding: 12px 24px; background: #2E7D32; color: white; text-decoration: none; border-radius: 8px; }
-            </style>
-        </head>
-        <body>
-            <div class="card">
-                <h1>Something went wrong</h1>
-                <p>${err.message}</p>
-                <a href="/" class="btn">Go Home</a>
-            </div>
-        </body>
-        </html>
-    `);
+// 404 handler
+app.use((req, res) => {
+    res.status(404).render('404', { url: req.url });
 });
 
 // Export for Vercel
 module.exports = app;
+
+// Local development
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Sale Point running at http://localhost:${PORT}`);
+    });
+}

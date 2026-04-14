@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../utils/supabase');
 
-// GET - Landing/Login Page
+// GET - Login Page
 router.get('/login', (req, res) => {
-    const token = req.cookies?.sb_token;
-    if (token) {
+    if (req.session.user) {
         return res.redirect('/dashboard');
     }
     res.render('login', { error: null });
@@ -13,8 +12,7 @@ router.get('/login', (req, res) => {
 
 // GET - Registration Page
 router.get('/register', (req, res) => {
-    const token = req.cookies?.sb_token;
-    if (token) {
+    if (req.session.user) {
         return res.redirect('/dashboard');
     }
     res.render('register', { error: null });
@@ -24,7 +22,6 @@ router.get('/register', (req, res) => {
 router.post('/register', async (req, res) => {
     const { shop_name, owner_name, email, password, confirm_password } = req.body;
     
-    // Validation
     if (!shop_name || !email || !password) {
         return res.render('register', { error: 'All fields are required' });
     }
@@ -38,7 +35,6 @@ router.post('/register', async (req, res) => {
     }
     
     try {
-        // Check if shop already exists
         const { data: existingShop } = await supabase
             .from('shops')
             .select('id')
@@ -49,7 +45,6 @@ router.post('/register', async (req, res) => {
             return res.render('register', { error: 'A shop with this email already exists' });
         }
         
-        // Create Supabase Auth user
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: email,
             password: password
@@ -59,7 +54,6 @@ router.post('/register', async (req, res) => {
             return res.render('register', { error: authError.message });
         }
         
-        // Insert shop record
         const { data: shopData, error: shopError } = await supabase
             .from('shops')
             .insert([{
@@ -74,13 +68,23 @@ router.post('/register', async (req, res) => {
             return res.render('register', { error: 'Failed to create shop record' });
         }
         
-        // Set auth cookie
+        // Save to session
+        req.session.user = {
+            id: authData.user.id,
+            email: email
+        };
+        req.session.shop = {
+            id: shopData.id,
+            shop_name: shopData.shop_name
+        };
+        
+        // Also set cookie for Supabase
         if (authData.session) {
             res.cookie('sb_token', authData.session.access_token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                maxAge: 24 * 60 * 60 * 1000 // 24 hours
+                maxAge: 24 * 60 * 60 * 1000
             });
         }
         
@@ -101,7 +105,6 @@ router.post('/login', async (req, res) => {
     }
     
     try {
-        // Sign in with Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
             email: email,
             password: password
@@ -111,7 +114,6 @@ router.post('/login', async (req, res) => {
             return res.render('login', { error: 'Invalid email or password' });
         }
         
-        // Check if shop exists
         const { data: shopData, error: shopError } = await supabase
             .from('shops')
             .select('id, shop_name')
@@ -122,13 +124,23 @@ router.post('/login', async (req, res) => {
             return res.render('login', { error: 'Shop not found' });
         }
         
-        // Set auth cookie
+        // Save to session
+        req.session.user = {
+            id: authData.user.id,
+            email: email
+        };
+        req.session.shop = {
+            id: shopData.id,
+            shop_name: shopData.shop_name
+        };
+        
+        // Also set cookie
         if (authData.session) {
             res.cookie('sb_token', authData.session.access_token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                maxAge: 24 * 60 * 60 * 1000 // 24 hours
+                maxAge: 24 * 60 * 60 * 1000
             });
         }
         
@@ -142,6 +154,7 @@ router.post('/login', async (req, res) => {
 
 // GET - Logout
 router.get('/logout', (req, res) => {
+    req.session.destroy();
     res.clearCookie('sb_token');
     res.redirect('/login');
 });

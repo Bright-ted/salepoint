@@ -3,163 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title><%= shop.name %> - Sale Point</title>
+    <title><%= shop.shop_name %> - Sale Point</title>
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
-          
         <header class="app-header">
             <div class="header-left">
-                <h1><%= shop.name %></h1>
+                <h1><%= shop.shop_name %></h1>
             </div>
             <div class="header-right">
                 <span class="date-badge"><%= new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) %></span>
+                <a href="/settings" class="icon-btn">
+                    <span class="material-icons">settings</span>
+                </a>
                 <a href="/logout" class="icon-btn">
                     <span class="material-icons">logout</span>
                 </a>
             </div>
         </header>
         
-        <!-- Main Content -->
-       <main class="app-main">
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon success">
-                <span class="material-icons">payments</span>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Today's Sales</span>
-                <span class="stat-value">₵<%= stats.todaySales %></span>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon primary">
-                <span class="material-icons">trending_up</span>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Today's Profit</span>
-                <span class="stat-value">₵<%= stats.todayProfit %></span>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon warning">
-                <span class="material-icons">receipt_long</span>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Transactions</span>
-                <span class="stat-value"><%= stats.transactionCount %></span>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon info">
-                <span class="material-icons">inventory</span>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Products</span>
-                <span class="stat-value"><%= stats.productCount %></span>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Quick Action Button -->
-    <div class="quick-action">
-        <a href="/sales/new" class="btn btn-primary btn-large btn-sale">
-            <span class="material-icons">add_shopping_cart</span>
-            New Sale
-        </a>
-    </div>
-    
-    <!-- Two Column Layout for Desktop -->
-    <div class="dashboard-sections">
-        <!-- Low Stock Alert -->
-        <!-- Low Stock Alert -->
-<div class="section">
-    <div class="section-header">
-        <h3>
-            <span class="material-icons warning">warning</span>
-            Low Stock Alert
-        </h3>
-        <% if (lowStockProducts.length > 0) { %>
-            <span class="badge warning"><%= lowStockProducts.length %></span>
-        <% } %>
-    </div>
-    
-    <% if (lowStockProducts.length > 0) { %>
-        <div class="list-card">
-            <% lowStockProducts.forEach(product => { %>
-                <div class="list-item">
-                    <div class="list-item-content">
-                        <span class="list-item-title"><%= product.product_name %></span>
-                        <span class="list-item-subtitle">
-                            <% if (product.available_units <= 0) { %>
-                                <span style="color: #F44336;">Out of stock</span>
-                            <% } else { %>
-                                <%= product.available_units %> <%= product.selling_unit %>(s) remaining
-                            <% } %>
-                        </span>
+        <main class="app-main">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <span class="material-icons">payments</span>
                     </div>
-                    <a href="/inventory/<%= product.id %>/restock" class="btn btn-outline btn-small">Restock</a>
-                </div>
-            <% }) %>
-        </div>
-    <% } else { %>
-        <div class="empty-state-small">
-            <span class="material-icons" style="color: #4CAF50;">check_circle</span>
-            <p>All products are well stocked</p>
-        </div>
-    <% } %>
-</div>
-        
-        <!-- Recent Activity -->
-        <!-- Recent Activity -->
-<div class="section">
-    <div class="section-header">
-        <h3>
-            <span class="material-icons">history</span>
-            Recent Activity
-        </h3>
-        <a href="/reports" class="link">View All</a>
-    </div>
-    
-    <% if (recentSales.length > 0) { %>
-        <div class="list-card">
-            <% recentSales.forEach(sale => { 
-                const time = new Date(sale.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-                let displayName = sale.first_product;
-                if (sale.item_count > 1) {
-                    displayName += ` +${sale.item_count - 1} more`;
-                }
-            %>
-                <div class="list-item">
-                    <div class="list-item-content">
-                        <span class="list-item-title"><%= displayName %></span>
-                        <span class="list-item-subtitle">
-                            <%= time %> • <%= sale.payment_method || 'cash' %>
-                        </span>
+                    <div class="stat-content">
+                        <span class="stat-label">Today's Sales</span>
+                        <span class="stat-value">₵<%= stats.todaySales %></span>
                     </div>
-                    <span class="list-item-value">₵<%= parseFloat(sale.total_amount).toFixed(2) %></span>
                 </div>
-            <% }) %>
-        </div>
-    <% } else { %>
-        <div class="empty-state-small">
-            <span class="material-icons">receipt</span>
-            <p>No sales yet today</p>
-            <a href="/sales" class="btn btn-primary btn-small" style="margin-top: 12px;">Make a Sale</a>
-        </div>
-    <% } %>
-</div>
-    </div>
-</main>
+                
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <span class="material-icons">trending_up</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Today's Profit</span>
+                        <span class="stat-value">₵<%= stats.todayProfit %></span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <span class="material-icons">receipt_long</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Transactions</span>
+                        <span class="stat-value"><%= stats.transactionCount %></span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon info">
+                        <span class="material-icons">inventory</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Products</span>
+                        <span class="stat-value"><%= stats.productCount %></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quick-action">
+                <a href="/sales" class="btn btn-primary btn-large btn-sale">
+                    <span class="material-icons">add_shopping_cart</span>
+                    New Sale
+                </a>
+            </div>
+            
+            <div class="dashboard-sections">
+                <div class="section">
+                    <div class="section-header">
+                        <h3>
+                            <span class="material-icons warning">warning</span>
+                            Low Stock Alert
+                        </h3>
+                        <% if (lowStockProducts.length > 0) { %>
+                            <span class="badge warning"><%= lowStockProducts.length %></span>
+                        <% } %>
+                    </div>
+                    
+                    <% if (lowStockProducts.length > 0) { %>
+                        <div class="list-card">
+                            <% lowStockProducts.forEach(product => { %>
+                                <div class="list-item">
+                                    <div class="list-item-content">
+                                        <span class="list-item-title"><%= product.product_name %></span>
+                                        <span class="list-item-subtitle">
+                                            <% if (product.available_units <= 0) { %>
+                                                <span style="color: #F44336;">Out of stock</span>
+                                            <% } else { %>
+                                                <%= product.available_units %> <%= product.selling_unit %>(s) remaining
+                                            <% } %>
+                                        </span>
+                                    </div>
+                                    <a href="/inventory/<%= product.id %>/restock" class="btn btn-outline btn-small">Restock</a>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } else { %>
+                        <div class="empty-state-small">
+                            <span class="material-icons" style="color: #4CAF50;">check_circle</span>
+                            <p>All products are well stocked</p>
+                        </div>
+                    <% } %>
+                </div>
+                
+                <div class="section">
+                    <div class="section-header">
+                        <h3>
+                            <span class="material-icons">history</span>
+                            Recent Activity
+                        </h3>
+                        <a href="/reports" class="link">View All</a>
+                    </div>
+                    
+                    <% if (recentSales.length > 0) { %>
+                        <div class="list-card">
+                            <% recentSales.forEach(sale => { 
+                                const time = new Date(sale.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                                let displayName = sale.first_product;
+                                if (sale.item_count > 1) {
+                                    displayName += ` +${sale.item_count - 1} more`;
+                                }
+                            %>
+                                <div class="list-item">
+                                    <div class="list-item-content">
+                                        <span class="list-item-title"><%= displayName %></span>
+                                        <span class="list-item-subtitle">
+                                            <%= time %> • <%= sale.payment_method || 'cash' %>
+                                        </span>
+                                    </div>
+                                    <span class="list-item-value">₵<%= parseFloat(sale.total_amount).toFixed(2) %></span>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } else { %>
+                        <div class="empty-state-small">
+                            <span class="material-icons">receipt</span>
+                            <p>No sales yet today</p>
+                            <a href="/sales" class="btn btn-primary btn-small" style="margin-top: 12px;">Make a Sale</a>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </main>
         
-        <!-- Bottom Navigation -->
         <nav class="bottom-nav">
             <a href="/dashboard" class="nav-item active">
                 <span class="material-icons">home</span>
